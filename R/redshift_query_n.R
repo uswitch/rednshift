@@ -65,7 +65,7 @@
 #' @export
 
 
-redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.function = NULL, parallel = FALSE, cores = NULL, package.list = NULL) {
+redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.function = NULL, parallel = FALSE, cores = NULL, package.list = NULL, skip.clean.up = FALSE) {
 
 
   execute_redshift_query <- function(sql.string, conn, bucket, aws.role) {
@@ -140,20 +140,23 @@ redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.funct
           })
   }
 
-  print("Cleaning up")
+    if (skip.clean.up == FALSE) {
+        print("Cleaning up")
 
-  if(parallel == TRUE) {
+        if(parallel == TRUE) {
 
-  foreach(key = keys, .packages = "aws.s3") %dopar% delete_object(key, bucket, quiet = TRUE)
+            foreach(key = keys, .packages = "aws.s3") %dopar% delete_object(key, bucket, quiet = TRUE)
 
-  stopCluster(cluster) } else {
+            stopCluster(cluster)
+        } else {
 
-  for (i in 1:NROW(keys)) {
+            for (i in 1:NROW(keys)) {
 
-    delete_object(keys[i], bucket, quiet = TRUE)
+                delete_object(keys[i], bucket, quiet = TRUE)
 
-  }
-
+            }
+        }
+    }
   }
 
   return(data)}
