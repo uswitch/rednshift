@@ -83,7 +83,7 @@ redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.funct
     entries <- aws.s3::get_bucket(bucket, key.prefix)
 
     get_key <- function(entries, x) {tryCatch(entries[[x]]$Key, error = function(e) {NULL})}
-    
+
     keys <- unlist(llply(seq(1,NROW(entries),1), function(x) {get_key(entries, x)}))
 
     return(keys)}
@@ -111,26 +111,34 @@ redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.funct
 
   if(parallel == TRUE) {
 
-  data <- tryCatch(if(is.null(transform.function))
+      data <- tryCatch(
 
-       {rbindlist(foreach(key = keys, .packages = package.list) %dopar% readDataFromS3(key))} else
+          if(is.null(transform.function)){
+              rbindlist(foreach(key = keys, .packages = package.list) %dopar% readDataFromS3(key))
+          } else {
+              rbindlist(foreach(key = keys, .packages = package.list) %dopar% transform.function(readDataFromS3(key)))
+          },
 
-       {rbindlist(foreach(key = keys, .packages = package.list) %dopar% transform.function(readDataFromS3(key)))},
+          error = function(err) {
+              print(paste("Data binding failed in parallel mode: ", err))
+          })
 
-        error = function(err) {print("Data binding failed.")})
+  } else {
 
-       } else {
+      data <- tryCatch(
 
-  data <- tryCatch(if(is.null(transform.function))
+          if(is.null(transform.function)) {
+              rbindlist(llply(keys, readDataFromS3))
+          } else {
+              rbindlist(llply(keys, function(x) {
+                  transform.function(readDataFromS3(x))
+              }))
+          },
 
-        {rbindlist(llply(keys, readDataFromS3))} else
-
-        {rbindlist(llply(keys, function(x) {transform.function(readDataFromS3(x))}))},
-
-        error = function(err) {print("Data bindling failed")})
-
-       }
-
+          error = function(err) {
+              print(paste("Data binding failed in serial mode: ", err))
+          })
+  }
 
   print("Cleaning up")
 
@@ -149,4 +157,3 @@ redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.funct
   }
 
   return(data)}
-
