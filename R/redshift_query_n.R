@@ -157,6 +157,5 @@ redshift_query_n <- function(sql.string, conn, bucket, aws.role, transform.funct
             }
         }
     }
-  }
 
   return(data)}
